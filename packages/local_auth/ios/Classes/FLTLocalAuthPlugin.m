@@ -100,31 +100,33 @@
 
   if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
                            error:&authError]) {
-    [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
-            localizedReason:arguments[@"localizedReason"]
-                      reply:^(BOOL success, NSError *error) {
-                        if (success) {
-                          result(@YES);
-                        } else {
-                          switch (error.code) {
-                            case LAErrorPasscodeNotSet:
-                            case LAErrorTouchIDNotAvailable:
-                            case LAErrorTouchIDNotEnrolled:
-                            case LAErrorTouchIDLockout:
-                              [self handleErrors:error
-                                   flutterArguments:arguments
-                                  withFlutterResult:result];
+      [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics
+              localizedReason:arguments[@"localizedReason"]
+                        reply:^(BOOL success, NSError *error) {
+          dispatch_async(dispatch_get_main_queue(), ^{
+              if (success) {
+                  result(@YES);
+              } else {
+                  switch (error.code) {
+                      case LAErrorPasscodeNotSet:
+                      case LAErrorTouchIDNotAvailable:
+                      case LAErrorTouchIDNotEnrolled:
+                      case LAErrorTouchIDLockout:
+                          [self handleErrors:error
+                            flutterArguments:arguments
+                           withFlutterResult:result];
+                          return;
+                      case LAErrorSystemCancel:
+                          if ([arguments[@"stickyAuth"] boolValue]) {
+                              self.lastCallArgs = arguments;
+                              self.lastResult = result;
                               return;
-                            case LAErrorSystemCancel:
-                              if ([arguments[@"stickyAuth"] boolValue]) {
-                                self.lastCallArgs = arguments;
-                                self.lastResult = result;
-                                return;
-                              }
                           }
-                          result(@NO);
-                        }
-                      }];
+                  }
+                  result(@NO);
+              }
+          });
+      }];
   } else {
     [self handleErrors:authError flutterArguments:arguments withFlutterResult:result];
   }
